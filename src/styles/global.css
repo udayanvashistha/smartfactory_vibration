@@ -404,6 +404,42 @@ a:hover {
   color: var(--gray-700);
 }
 
+.trend-axis-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.trend-axis-toggle__btn {
+  border: 1px solid var(--gray-200, #e2e8f0);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--gray-600, #475569);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trend-axis-toggle__btn:hover:not(:disabled) {
+  border-color: var(--primary-500);
+  color: var(--primary-600);
+}
+
+.trend-axis-toggle__btn--active {
+  background: var(--primary-600);
+  color: #fff;
+  border-color: var(--primary-600);
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+}
+
+.trend-axis-toggle__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .dashboard-page__chart {
   border: 1px solid var(--gray-100);
   border-radius: 1.25rem;

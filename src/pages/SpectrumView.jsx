@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { getVelocityData } from '../api/data/data.api';
+import { getAccelerationData } from '../api/data/data.api';
 import { getAllendpoints } from '../api/assests/assests.api';
 import VelocityChart from '../components/charts/VelocityChart';
 
@@ -21,7 +21,7 @@ const SpectrumView = () => {
         setVelocityError("");
 
         try {
-            const response = await getVelocityData(payload);
+            const response = await getAccelerationData(payload);
             if (response.error) {
                 throw new Error("Unable to load velocity data.");
             }

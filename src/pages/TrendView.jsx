@@ -4,12 +4,38 @@ import { getTrendData } from '../api/data/data.api';
 import { getAllendpoints } from '../api/assests/assests.api';
 import TrendChart from '../components/charts/TrendChart';
 
+const AXIS_TARGETS = ["Axial", "Vertical", "Horizontal"];
+const AXIS_FILTERS = ["All", ...AXIS_TARGETS];
+
+const normalizeAxisLabels = (axes) => {
+    if (!axes) return [];
+    const axisArray = Array.isArray(axes) ? axes : [axes];
+    return axisArray
+        .map((axis) => {
+            if (typeof axis !== "string") return null;
+            const cleaned = axis.trim();
+            if (!cleaned) return null;
+            return cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+        })
+        .filter(Boolean);
+};
+
+const formatAxisForApi = (axes) => {
+    if (!axes) return [];
+    const axisArray = Array.isArray(axes) ? axes : [axes];
+    return axisArray
+        .map((axis) => (typeof axis === "string" ? axis.trim() : null))
+        .filter(Boolean);
+};
+
 const TrendView = () => {
     const { assetId, isLoadingAssets } = useOutletContext();
     const [trendSeries, setTrendSeries] = useState([]);
     const [trendMeta, setTrendMeta] = useState(null);
     const [trendError, setTrendError] = useState("");
     const [isTrendLoading, setIsTrendLoading] = useState(false);
+    const [trendRequestBase, setTrendRequestBase] = useState(null);
+    const [selectedAxisFilter, setSelectedAxisFilter] = useState("All");
 
     const fetchTrendSeries = useCallback(async (payload, meta = {}) => {
         if (!payload.asset_id || !payload.mac_id) {
@@ -40,9 +66,17 @@ const TrendView = () => {
                 timestamp: (Number(entry.timestamp) || 0) * 1000
             }));
 
+            const metaAxes = normalizeAxisLabels(meta.axes);
+            const payloadAxes = normalizeAxisLabels(payload.axis);
+            const resolvedAxes = metaAxes.length
+                ? metaAxes
+                : payloadAxes.length
+                    ? payloadAxes
+                    : ["Axial"];
+
             setTrendSeries(processedEntries);
             setTrendMeta({
-                axes: payload.axis || meta.axes || ["Axial"],
+                axes: resolvedAxes,
                 signalType: payload.signalType || meta.signalType || "velocity",
                 domain: payload.domain || meta.domain || "time",
                 metricKey: payload.function || meta.metricKey || "rms",
@@ -121,11 +155,9 @@ const TrendView = () => {
                         ? `${baseMacId}${measurementId}`
                         : baseMacId;
 
-                const axisTargets = ["Axial", "Vertical", "Horizontal"];
-                const trendPayload = {
+                const baseTrendPayload = {
                     mac_id: payloadMacId,
                     asset_id: assetId,
-                    axis: axisTargets,
                     domain: "time",
                     function: "rms",
                     signalType: "velocity",
@@ -134,12 +166,18 @@ const TrendView = () => {
                     toDate: null,
                 };
 
-                await fetchTrendSeries(trendPayload, {
-                    axes: axisTargets,
-                    signalType: "velocity",
-                    domain: "time",
-                    metricKey: "rms",
-                });
+                setTrendRequestBase(baseTrendPayload);
+                setSelectedAxisFilter("All");
+
+                await fetchTrendSeries(
+                    { ...baseTrendPayload, axis: formatAxisForApi(AXIS_TARGETS) },
+                    {
+                        axes: AXIS_TARGETS,
+                        signalType: "velocity",
+                        domain: "time",
+                        function: "rms",
+                    }
+                );
             } catch (err) {
                 setTrendError("Failed to initialize data.");
             }
@@ -148,12 +186,49 @@ const TrendView = () => {
         initData();
     }, [fetchTrendSeries, assetId, isLoadingAssets]);
 
+    const handleAxisSelection = useCallback(
+        (nextAxis) => {
+            if (!trendRequestBase || nextAxis === selectedAxisFilter) return;
+
+            const axesArray =
+                nextAxis === "All" ? AXIS_TARGETS : [nextAxis];
+
+            setSelectedAxisFilter(nextAxis);
+            fetchTrendSeries(
+                { ...trendRequestBase, axis: formatAxisForApi(axesArray) },
+                {
+                    axes: axesArray,
+                    signalType: trendRequestBase.signalType,
+                    domain: trendRequestBase.domain,
+                    function: trendRequestBase.function,
+                }
+            );
+        },
+        [fetchTrendSeries, selectedAxisFilter, trendRequestBase]
+    );
+
     return (
         <section className="dashboard-card dashboard-card--compact">
             <div className="dashboard-card__header">
                 <div>
                     <p className="dashboard-card__eyebrow">Trend</p>
                     <h2>Velocity Trend</h2>
+                </div>
+                <div className="trend-axis-toggle" role="group" aria-label="Axis selection">
+                    {AXIS_FILTERS.map((axisOption) => {
+                        const isActive = selectedAxisFilter === axisOption;
+                        return (
+                            <button
+                                key={axisOption}
+                                type="button"
+                                className={`trend-axis-toggle__btn${isActive ? " trend-axis-toggle__btn--active" : ""}`}
+                                onClick={() => handleAxisSelection(axisOption)}
+                                disabled={isTrendLoading || !trendRequestBase}
+                            >
+                                {axisOption}
+                            </button>
+                        );
+                    })}
                 </div>
                 {Boolean(trendMeta?.axes?.length) && (
                     <span className="dashboard-chip">
